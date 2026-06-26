@@ -1,0 +1,20 @@
+# Obsidian
+.obsidian/workspace*
+.obsidian/cache
+.trash/
+
+# OneDrive
+*.tmp
+~$*
+
+# PowerShell
+*.log
+.sync-state.json
+
+# Node
+node_modules/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
