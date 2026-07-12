@@ -60,6 +60,7 @@
 | `New-CommandCenter.ps1` | 619 | Интерактивное меню управления экосистемой |
 | `Sync-ObsidianToNotion.ps1` | 569 | Markdown→Notion blocks, #publish теги, state management |
 | `Backup-ToGitHub.ps1` | 375 | Auto-init git, daily commits, push |
+| `Test-LaptopHealth.ps1` | 380 | Диагностика ноутбука: CPU, RAM, диски/SMART, батарея, сеть, безопасность, Health Score |
 
 ### Веб-витрина
 - **Live:** https://iusigf6hsqxqy.kimi.page

@@ -10,6 +10,7 @@
 # PowerShell
 *.log
 .sync-state.json
+reports/
 
 # Node
 node_modules/
