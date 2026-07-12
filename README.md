@@ -58,7 +58,7 @@
 |--------|-------|------------|
 | `Get-WorkspaceStatus.ps1` | 1,007 | Дашборд: OneDrive, Obsidian, Notion API, GitHub, Junctions, Task Scheduler |
 | `New-CommandCenter.ps1` | 619 | Интерактивное меню управления экосистемой |
-| `Sync-ObsidianToNotion.ps1` | 569 | Markdown→Notion blocks, #publish теги, state management |
+| `Sync-ObsidianToNotion.ps1` | 624 | Markdown→Notion blocks, #publish теги, обновление страниц без дубликатов, state management |
 | `Backup-ToGitHub.ps1` | 375 | Auto-init git, daily commits, push |
 
 ### Веб-витрина
@@ -66,9 +66,15 @@
 - 5 страниц: Home, Templates, Fonts, Dashboard, Workflow
 - React 19 + TypeScript + Tailwind CSS + Framer Motion
 
+### Obsidian
+- Vault в `OneDrive\Obsidian\` — ежедневные заметки, исследования, черновики
+- Daily Notes создаются автоматически в 07:00, Git-бэкап на GitHub в 18:00
+- Публикация в Notion по тегу `#publish` — подробнее в [docs/obsidian.md](docs/obsidian.md)
+
 ### Notion
 - Research Projects DB — проекты, статьи, гранты
 - Integration Tasks DB — 10 задач со статусами
+- Синхронизация из Obsidian: только `#publish`-заметки, обновление страниц без дубликатов — подробнее в [docs/notion.md](docs/notion.md)
 
 ## Быстрый старт
 
@@ -80,6 +86,10 @@
 # Запустить Command Center — управление экосистемой
 .\scripts\New-CommandCenter.ps1
 ```
+
+## Документация
+- [Obsidian — локальная база знаний](docs/obsidian.md)
+- [Notion — командное пространство и синхронизация](docs/notion.md)
 
 ## Ссылки
 - **GitHub:** https://github.com/Serg2206/laptop-ecosystem

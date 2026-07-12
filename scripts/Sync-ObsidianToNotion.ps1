@@ -8,6 +8,9 @@
 
     Features:
     - Full Markdown to Notion block conversion
+    - Publishes only notes tagged #publish (use -AllNotes to sync everything)
+    - Updates existing Notion pages in place instead of creating duplicates
+    - YAML frontmatter is stripped before conversion
     - MD5-based change detection with persistent state
     - Rate-limited API calls (350ms between requests)
     - Dry-run mode for testing
@@ -28,12 +31,14 @@
     Force sync all files regardless of state.
 .PARAMETER DryRun
     Show what would be synced without making API calls.
+.PARAMETER AllNotes
+    Sync every markdown file, not only notes tagged #publish.
 .EXAMPLE
     .\Sync-ObsidianToNotion.ps1 -Force
-    Forces a full sync of all notes.
+    Forces a full sync of all #publish notes.
 .EXAMPLE
-    .\Sync-ObsidianToNotion.ps1 -VaultPath "C:\Users\Me\Obsidian"
-    Syncs from a custom vault location.
+    .\Sync-ObsidianToNotion.ps1 -VaultPath "C:\Users\Me\Obsidian" -AllNotes
+    Syncs every note from a custom vault location.
 .NOTES
     File Name      : Sync-ObsidianToNotion.ps1
     Author         : Serg2206
@@ -47,7 +52,8 @@ param(
     [string]$StateFile = "$env:USERPROFILE\.laptop-ecosystem\sync-state.json",
     [string]$LogPath = "$env:USERPROFILE\.laptop-ecosystem\logs",
     [switch]$Force,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$AllNotes
 )
 
 # ═══════════════════════════════════════════
@@ -60,15 +66,19 @@ $script:Config = @{
     MaxBlocksPerPage = 100
     SupportedExtensions = @('.md', '.markdown')
     ExcludedFolders = @('.obsidian', '.git', 'templates', 'archive')
+    PublishTag = 'publish'
 }
 
 # ═══════════════════════════════════════════
 # COLOR OUTPUT HELPERS
 # ═══════════════════════════════════════════
 function Write-StatusLine {
-    param([string]$Icon, [string]$Message, [string]$Color = "White")
-    $colors = @{ "Green" = "Green"; "Red" = "Red"; "Yellow" = "Yellow"; "Cyan" = "Cyan" }
-    Write-Host "$Icon $Message" -ForegroundColor $colors[$Color]
+    param(
+        [string]$Icon,
+        [string]$Message,
+        [System.ConsoleColor]$Color = [System.ConsoleColor]::White
+    )
+    Write-Host "$Icon $Message" -ForegroundColor $Color
 }
 
 # ═══════════════════════════════════════════
@@ -169,11 +179,40 @@ function Get-FileHashMD5 {
 }
 
 # ═══════════════════════════════════════════
+# NOTE PARSING HELPERS
+# ═══════════════════════════════════════════
+# Split YAML frontmatter from the note body
+function Split-NoteFrontMatter {
+    param([AllowEmptyString()][string]$Content = '')
+    if ($Content -match '(?s)^\s*---\s*\r?\n(.*?)\r?\n---\s*(\r?\n|$)(.*)$') {
+        return @{ FrontMatter = $matches[1]; Body = $matches[3] }
+    }
+    return @{ FrontMatter = ''; Body = $Content }
+}
+
+# A note is publishable when tagged #publish inline, via frontmatter tags,
+# or via "publish: true" in frontmatter
+function Test-NotePublishable {
+    param([AllowEmptyString()][string]$Content = '')
+    if ($AllNotes) { return $true }
+    $tag = $script:Config.PublishTag
+    $parts = Split-NoteFrontMatter -Content $Content
+    if ($parts.Body -match "(?m)(^|\s)#$tag(\s|`$)") { return $true }
+    if ($parts.FrontMatter -match "(?im)^tags\s*:.*\b$tag\b") { return $true }
+    if ($parts.FrontMatter -match "(?im)^\s*-\s*$tag\s*`$") { return $true }
+    if ($parts.FrontMatter -match "(?im)^publish\s*:\s*true\s*`$") { return $true }
+    return $false
+}
+
+# ═══════════════════════════════════════════
 # MARKDOWN → NOTION BLOCKS CONVERTER
 # ═══════════════════════════════════════════
 function Convert-MarkdownToNotionBlocks {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Markdown)
+
+    # YAML frontmatter is metadata, not content
+    $Markdown = (Split-NoteFrontMatter -Content $Markdown).Body
 
     $blocks = @()
     $lines = $Markdown -split "`r?`n"
@@ -212,6 +251,18 @@ function Convert-MarkdownToNotionBlocks {
                 }
             }
         }
+        # Checkboxes (before bullet lists: "- [x]" must not match as a bullet)
+        elseif ($trimmed -match '^-?\s*\[([ xX])\]\s+(.+)$') {
+            $checked = $matches[1] -ne " "
+            $text = $matches[2]
+            $blocks += @{
+                type = "to_do"
+                to_do = @{
+                    rich_text = @(@{ type = "text"; text = @{ content = $text } })
+                    checked = [bool]$checked
+                }
+            }
+        }
         # Bullet lists
         elseif ($trimmed -match '^[-*+]\s+(.+)$') {
             $text = $matches[1]
@@ -229,18 +280,6 @@ function Convert-MarkdownToNotionBlocks {
                 type = "numbered_list_item"
                 numbered_list_item = @{
                     rich_text = @(@{ type = "text"; text = @{ content = $text } })
-                }
-            }
-        }
-        # Checkboxes
-        elseif ($trimmed -match '^-?\s*\[([ xX])\]\s+(.+)$') {
-            $checked = $matches[1] -ne " "
-            $text = $matches[2]
-            $blocks += @{
-                type = "to_do"
-                to_do = @{
-                    rich_text = @(@{ type = "text"; text = @{ content = $text } })
-                    checked = [bool]$checked
                 }
             }
         }
@@ -277,14 +316,22 @@ function Convert-MarkdownToNotionBlocks {
 function Get-SyncState {
     if (Test-Path $StateFile) {
         try {
-            $content = Get-Content $StateFile -Raw -Encoding UTF8
-            return $content | ConvertFrom-Json
+            $json = Get-Content $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            # Normalize to hashtables so entries can be added/removed by key
+            $state = @{ files = @{}; pages = @{}; lastSync = $json.lastSync }
+            if ($json.files) {
+                foreach ($prop in $json.files.PSObject.Properties) { $state.files[$prop.Name] = $prop.Value }
+            }
+            if ($json.pages) {
+                foreach ($prop in $json.pages.PSObject.Properties) { $state.pages[$prop.Name] = $prop.Value }
+            }
+            return $state
         }
         catch {
             Write-StatusLine "⚠️" "Corrupted state file, starting fresh" "Yellow"
         }
     }
-    return @{ files = @{}; lastSync = $null }
+    return @{ files = @{}; pages = @{}; lastSync = $null }
 }
 
 function Save-SyncState {
@@ -363,9 +410,14 @@ function Sync-NoteToNotion {
     $content = Get-Content $File.FullName -Raw -Encoding UTF8
     $hash = Get-FileHashMD5 -Path $File.FullName
 
+    if (-not (Test-NotePublishable -Content $content)) {
+        Write-StatusLine "🚫" "Not tagged #$($script:Config.PublishTag), skipping" "Yellow"
+        return @{ NotPublishable = $true }
+    }
+
     # Check if already synced and unchanged
     $state = Get-SyncState
-    if (-not $Force -and $state.files.$relativePath -eq $hash) {
+    if (-not $Force -and $state.files[$relativePath] -eq $hash) {
         Write-StatusLine "⏭️" "Unchanged, skipping" "Yellow"
         return @{ Skipped = $true }
     }
@@ -384,28 +436,37 @@ function Sync-NoteToNotion {
         return @{ DryRun = $true; Blocks = $blocks.Count }
     }
 
-    # Create page in Notion
     $title = $File.BaseName
-    $body = @{
-        parent = @{ page_id = $ParentPageId }
-        properties = @{
-            title = @{ title = @(@{ text = @{ content = $title } }) }
+
+    # Reuse the page created by a previous sync; fall back to a title search
+    $pageId = $state.pages[$relativePath]
+    if (-not $pageId) { $pageId = Find-NotionPage -Title $title }
+
+    if ($pageId) {
+        $result = Update-NotionPage -PageId $pageId -Blocks $blocks
+        $action = "Updated"
+    }
+    else {
+        $body = @{
+            parent = @{ page_id = $ParentPageId }
+            properties = @{
+                title = @{ title = @(@{ text = @{ content = $title } }) }
+            }
+            children = $blocks
         }
-        children = $blocks
+        $result = Invoke-NotionApi -Method POST -Endpoint "/pages" -Body $body
+        if ($result.Success) { $pageId = $result.Data.id }
+        $action = "Created"
     }
 
-    $result = Invoke-NotionApi -Method POST -Endpoint "/pages" -Body $body
-
     if ($result.Success) {
-        # Update state
-        $state = Get-SyncState
-        if (-not $state.files) { $state.files = @{} }
-        $state.files.$relativePath = $hash
+        $state.files[$relativePath] = $hash
+        if ($pageId) { $state.pages[$relativePath] = $pageId }
         $state.lastSync = (Get-Date).ToString("o")
         Save-SyncState -State $state
 
-        Write-StatusLine "✅" "Synced: $title ($($blocks.Count) blocks)" "Green"
-        return @{ Success = $true; PageId = $result.Data.id; Blocks = $blocks.Count }
+        Write-StatusLine "✅" "$action`: $title ($($blocks.Count) blocks)" "Green"
+        return @{ Success = $true; PageId = $pageId; Blocks = $blocks.Count }
     }
     else {
         Write-StatusLine "❌" "Failed: $($result.Error)" "Red"
@@ -437,20 +498,15 @@ function Test-VaultHealth {
         }
     }
 
-    # Check for orphaned state entries
+    # Check for orphaned state entries (files deleted from the vault)
     $state = Get-SyncState
     $currentFiles = Get-VaultFiles | ForEach-Object { $_.FullName.Substring($VaultPath.Length + 1) }
-    $orphaned = @()
-    $stateFiles = $state.files | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
-    foreach ($sf in $stateFiles) {
-        if ($sf -notin $currentFiles) {
-            $orphaned += $sf
-        }
-    }
+    $orphaned = @($state.files.Keys | Where-Object { $_ -notin $currentFiles })
     if ($orphaned.Count -gt 0) {
         Write-StatusLine "⚠️" "Found $($orphaned.Count) orphaned state entries" "Yellow"
-        foreach ($op in $orphaned | Select-Object -First 5) {
-            $state.files.PSObject.Properties.Remove($op)
+        foreach ($op in $orphaned) {
+            $state.files.Remove($op)
+            $state.pages.Remove($op)
         }
         Save-SyncState -State $state
         Write-StatusLine "🧹" "Cleaned up orphaned entries" "Green"
@@ -514,7 +570,7 @@ function Start-ObsidianNotionSync {
     }
 
     # Sync each file
-    $stats = @{ Synced = 0; Failed = 0; Skipped = 0; TotalBlocks = 0 }
+    $stats = @{ Synced = 0; Failed = 0; Skipped = 0; NotTagged = 0; TotalBlocks = 0 }
 
     foreach ($file in $files) {
         $result = Sync-NoteToNotion -File $file -ParentPageId $parentPageId
@@ -524,6 +580,7 @@ function Start-ObsidianNotionSync {
             $stats.TotalBlocks += $result.Blocks
         }
         elseif ($result.Skipped) { $stats.Skipped++ }
+        elseif ($result.NotPublishable) { $stats.NotTagged++ }
         elseif ($result.DryRun) {
             $stats.Synced++
             $stats.TotalBlocks += $result.Blocks
@@ -534,10 +591,11 @@ function Start-ObsidianNotionSync {
     # Summary
     Write-Host "`n───────────────────────────────────────────" -ForegroundColor Gray
     Write-Host "Sync Summary:" -ForegroundColor White
-    Write-Host "  ✅ Synced:   $($stats.Synced)" -ForegroundColor Green
-    Write-Host "  ⏭️ Skipped:  $($stats.Skipped)" -ForegroundColor Yellow
-    Write-Host "  ❌ Failed:   $($stats.Failed)" -ForegroundColor Red
-    Write-Host "  📝 Blocks:   $($stats.TotalBlocks)" -ForegroundColor Cyan
+    Write-Host "  ✅ Synced:     $($stats.Synced)" -ForegroundColor Green
+    Write-Host "  ⏭️ Skipped:    $($stats.Skipped)" -ForegroundColor Yellow
+    Write-Host "  🚫 Not tagged: $($stats.NotTagged)" -ForegroundColor Yellow
+    Write-Host "  ❌ Failed:     $($stats.Failed)" -ForegroundColor Red
+    Write-Host "  📝 Blocks:     $($stats.TotalBlocks)" -ForegroundColor Cyan
     Write-Host "───────────────────────────────────────────" -ForegroundColor Gray
 }
 
@@ -558,6 +616,7 @@ Write-Host "  Vault Path: $VaultPath" -ForegroundColor Gray
 Write-Host "  State File: $StateFile" -ForegroundColor Gray
 Write-Host "  Dry Run:    $DryRun" -ForegroundColor Gray
 Write-Host "  Force:      $Force" -ForegroundColor Gray
+Write-Host "  Scope:      $(if ($AllNotes) { 'all notes' } else { "#$($script:Config.PublishTag) notes only" })" -ForegroundColor Gray
 
 Start-ObsidianNotionSync
 
