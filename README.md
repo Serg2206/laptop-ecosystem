@@ -62,6 +62,7 @@
 | `Backup-ToGitHub.ps1` | 375 | Auto-init git, daily commits, push |
 | `Test-LaptopHealth.ps1` | 420 | Диагностика ноутбука: CPU, RAM, диски/SMART, батарея, сеть, безопасность, Health Score, JSON+HTML отчёты |
 | `Register-HealthCheckTask.ps1` | 150 | Автодиагностика: задача Task Scheduler `MS365-LaptopHealth`, отчёты в OneDrive |
+| `Optimize-Laptop.ps1` | 250 | Оптимизация: temp-файлы, DNS, аудит автозагрузки/питания, -Deep: корзина, кэш WU, TRIM |
 
 ### Веб-витрина
 - **Live:** https://iusigf6hsqxqy.kimi.page
@@ -87,6 +88,10 @@
 
 # Автодиагностика каждую неделю (или пункт [A] в Command Center)
 .\scripts\Register-HealthCheckTask.ps1 -RunNow
+
+# Оптимизация: сначала предпросмотр, потом очистка (пункт [O] в Command Center)
+.\scripts\Optimize-Laptop.ps1 -WhatIf
+.\scripts\Optimize-Laptop.ps1 -Deep
 ```
 
 ## Ссылки
