@@ -68,6 +68,7 @@
 - **Live:** https://iusigf6hsqxqy.kimi.page
 - 6 страниц: Home, Templates, Fonts, Dashboard, Workflow, Health
 - Health: загрузка JSON-отчётов Test-LaptopHealth — Health Score, KPI, тренд, детали
+- Сборка: `cd webapp && npm install && npm run build` (dev-сервер: `npm run dev`)
 - React 19 + TypeScript + Tailwind CSS + Framer Motion
 
 ### Notion
@@ -77,6 +78,12 @@
 ## Быстрый старт
 
 ```powershell
+# Установка одной командой (клонирует репозиторий и настраивает всё)
+iwr -useb https://raw.githubusercontent.com/Serg2206/laptop-ecosystem/main/Setup-Everything.ps1 | iex
+
+# Или из клона репозитория:
+.\Setup-Everything.ps1
+
 # Установить шрифты + шаблоны (администратор)
 .\ms365-design\install\Install-Fonts.ps1
 .\ms365-design\install\Install-Templates.ps1

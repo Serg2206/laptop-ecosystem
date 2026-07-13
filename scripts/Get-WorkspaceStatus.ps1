@@ -28,7 +28,7 @@
 param (
     [string]$VaultPath = "C:\Obsidian",
     [switch]$Export,
-    [string]$ReportPath = (Join-Path $PSScriptRoot ".." "reports")
+    [string]$ReportPath = (Join-Path (Split-Path $PSScriptRoot -Parent) "reports")
 )
 
 $ErrorActionPreference = 'Continue'
@@ -124,7 +124,7 @@ function Get-GitHubRepoStatus {
 
 function Get-JunctionLinksStatus {
     param([string]$ConfigPath)
-    $junctions = @(); $configLocations = @($ConfigPath, (Join-Path $PSScriptRoot "junctions.config.json"), (Join-Path $PSScriptRoot ".." "junctions.config.json"))
+    $junctions = @(); $configLocations = @($ConfigPath, (Join-Path $PSScriptRoot "junctions.config.json"), (Join-Path (Split-Path $PSScriptRoot -Parent) "junctions.config.json"))
     $foundConfig = $null; foreach ($loc in $configLocations) { if (Test-Path $loc) { $foundConfig = $loc; break } }
     if (-not $foundConfig) {
         if (Test-Path $VaultPath) { $item = Get-Item $VaultPath -Force; $isJunction = $item.Attributes -match 'ReparsePoint'; $junctions += [PSCustomObject]@{ Name = 'VaultPath'; Path = $VaultPath; Target = if ($isJunction) { (Get-Item $VaultPath).Target } else { 'N/A' }; Exists = $true; IsJunction = $isJunction; Status = if ($isJunction) { 'OK' } else { 'NOT_JUNCTION' } } }

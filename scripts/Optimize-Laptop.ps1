@@ -42,7 +42,7 @@ param (
     [ValidateRange(0, 365)][int]$OlderThanDays = 7,
     [switch]$Deep,
     [switch]$Export,
-    [string]$ReportPath = (Join-Path $PSScriptRoot ".." "reports")
+    [string]$ReportPath = (Join-Path (Split-Path $PSScriptRoot -Parent) "reports")
 )
 
 $ErrorActionPreference = 'Continue'

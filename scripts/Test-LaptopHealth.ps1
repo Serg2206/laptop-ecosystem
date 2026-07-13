@@ -39,7 +39,7 @@
 param (
     [switch]$Export,
     [switch]$Full,
-    [string]$ReportPath = (Join-Path $PSScriptRoot ".." "reports"),
+    [string]$ReportPath = (Join-Path (Split-Path $PSScriptRoot -Parent) "reports"),
     [ValidateRange(0, 1000)][int]$KeepReports = 30
 )
 
