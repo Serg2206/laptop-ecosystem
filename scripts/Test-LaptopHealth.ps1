@@ -44,6 +44,8 @@ if ($PSVersionTable.PSVersion.Major -ge 6 -and -not $IsWindows) {
 }
 $script:IssuesFound = 0
 $script:WarningsFound = 0
+$script:CurrentSection = ''
+$script:Lines = New-Object System.Collections.Generic.List[object]
 $script:Report = [ordered]@{ GeneratedAt = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'); Computer = $env:COMPUTERNAME; Sections = [ordered]@{} }
 
 function Write-StatusLine {
@@ -55,10 +57,12 @@ function Write-StatusLine {
     Write-Host $Value -ForegroundColor White
     if ($Status -eq 'ERROR') { $script:IssuesFound++ }
     if ($Status -eq 'WARN') { $script:WarningsFound++ }
+    $script:Lines.Add([pscustomobject]@{ Section = $script:CurrentSection; Label = $Label; Value = $Value; Status = $Status })
 }
 
 function Write-Section {
     param([string]$Title)
+    $script:CurrentSection = $Title
     Write-Host ""; Write-Host "  $( '=' * 58 )" -ForegroundColor DarkGray
     Write-Host "  $Title" -ForegroundColor Cyan
     Write-Host "  $( '=' * 58 )" -ForegroundColor DarkGray
@@ -402,8 +406,36 @@ Write-Host ""
 
 if ($Export) {
     if (-not (Test-Path $ReportPath)) { New-Item -ItemType Directory -Path $ReportPath -Force | Out-Null }
-    $file = Join-Path $ReportPath "laptop-health-$((Get-Date).ToString('yyyyMMdd-HHmmss')).json"
-    $script:Report | ConvertTo-Json -Depth 6 | Out-File $file -Encoding UTF8
-    Write-Host "  Отчёт сохранён: $file" -ForegroundColor Cyan
+    $stamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
+    $jsonFile = Join-Path $ReportPath "laptop-health-$stamp.json"
+    $script:Report | ConvertTo-Json -Depth 6 | Out-File $jsonFile -Encoding UTF8
+    Write-Host "  JSON-отчёт: $jsonFile" -ForegroundColor Cyan
+
+    # HTML-отчёт: те же строки статусов, что и в консоли, сгруппированные по секциям
+    function ConvertTo-HtmlSafe { param([string]$s); ($s -replace '&', '&amp;') -replace '<', '&lt;' -replace '>', '&gt;' }
+    $scoreClass = if ($score -ge 85) { 'ok' } elseif ($score -ge 60) { 'warn' } else { 'err' }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine('<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Диагностика ноутбука</title><style>')
+    [void]$sb.AppendLine('body{font-family:Segoe UI,Arial,sans-serif;background:#0f1420;color:#e6e9f0;max-width:860px;margin:24px auto;padding:0 16px}')
+    [void]$sb.AppendLine('h1{font-size:1.4em}h2{font-size:1.05em;color:#7fd4ff;border-bottom:1px solid #2a3550;padding-bottom:4px;margin-top:28px}')
+    [void]$sb.AppendLine('.score{font-size:2.4em;font-weight:700}.score.ok{color:#4ade80}.score.warn{color:#facc15}.score.err{color:#f87171}')
+    [void]$sb.AppendLine('table{width:100%;border-collapse:collapse}td{padding:5px 8px;border-bottom:1px solid #1d2740;vertical-align:top}')
+    [void]$sb.AppendLine('td.st{width:56px;font-weight:700;white-space:nowrap}td.lb{width:230px;color:#9aa5bd}')
+    [void]$sb.AppendLine('.OK{color:#4ade80}.WARN{color:#facc15}.ERROR{color:#f87171}.INFO{color:#7fd4ff}.SKIP{color:#5b6478}')
+    [void]$sb.AppendLine('.meta{color:#9aa5bd;font-size:.9em}</style></head><body>')
+    [void]$sb.AppendLine("<h1>Диагностика ноутбука — $(ConvertTo-HtmlSafe $env:COMPUTERNAME)</h1>")
+    [void]$sb.AppendLine("<div class='meta'>$($script:Report.GeneratedAt) • Test-LaptopHealth.ps1$(if ($Full) { ' • режим Full' })</div>")
+    [void]$sb.AppendLine("<p class='score $scoreClass'>$score / 100</p><p>$verdict — ошибок: $($script:IssuesFound), предупреждений: $($script:WarningsFound)</p>")
+    foreach ($group in ($script:Lines | Group-Object Section)) {
+        [void]$sb.AppendLine("<h2>$(ConvertTo-HtmlSafe $group.Name)</h2><table>")
+        foreach ($l in $group.Group) {
+            [void]$sb.AppendLine("<tr><td class='st $($l.Status)'>$($l.Status)</td><td class='lb'>$(ConvertTo-HtmlSafe $l.Label)</td><td>$(ConvertTo-HtmlSafe $l.Value)</td></tr>")
+        }
+        [void]$sb.AppendLine('</table>')
+    }
+    [void]$sb.AppendLine('</body></html>')
+    $htmlFile = Join-Path $ReportPath "laptop-health-$stamp.html"
+    $sb.ToString() | Out-File $htmlFile -Encoding UTF8
+    Write-Host "  HTML-отчёт: $htmlFile" -ForegroundColor Cyan
     Write-Host ""
 }
