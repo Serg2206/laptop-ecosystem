@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  scripts-syntax:
+    name: PowerShell syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse all .ps1 files
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in (Get-ChildItem -Recurse -Filter '*.ps1')) {
+            $e = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$e)
+            if ($e) {
+              $failed = $true
+              foreach ($err in $e) {
+                Write-Host "::error file=$($f.FullName),line=$($err.Extent.StartLineNumber)::$($err.Message)"
+              }
+            } else {
+              Write-Host "OK  $($f.FullName)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+  webapp-build:
+    name: Webapp typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci
+      - run: npm run build
