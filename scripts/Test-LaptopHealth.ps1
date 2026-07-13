@@ -27,6 +27,10 @@
 .PARAMETER ReportPath
     Папка для отчётов. По умолчанию: ..\reports относительно скрипта.
 
+.PARAMETER KeepReports
+    Сколько последних пар отчётов (JSON+HTML) хранить в ReportPath.
+    Старые удаляются автоматически. По умолчанию: 30. 0 = не удалять.
+
 .EXAMPLE
     .\Test-LaptopHealth.ps1
     .\Test-LaptopHealth.ps1 -Full -Export
@@ -35,7 +39,8 @@
 param (
     [switch]$Export,
     [switch]$Full,
-    [string]$ReportPath = (Join-Path $PSScriptRoot ".." "reports")
+    [string]$ReportPath = (Join-Path $PSScriptRoot ".." "reports"),
+    [ValidateRange(0, 1000)][int]$KeepReports = 30
 )
 
 $ErrorActionPreference = 'Continue'
@@ -437,5 +442,14 @@ if ($Export) {
     $htmlFile = Join-Path $ReportPath "laptop-health-$stamp.html"
     $sb.ToString() | Out-File $htmlFile -Encoding UTF8
     Write-Host "  HTML-отчёт: $htmlFile" -ForegroundColor Cyan
+
+    # Ротация: храним только KeepReports последних отчётов каждого типа
+    if ($KeepReports -gt 0) {
+        foreach ($ext in @('json', 'html')) {
+            Get-ChildItem $ReportPath -Filter "laptop-health-*.$ext" -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending | Select-Object -Skip $KeepReports |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+    }
     Write-Host ""
 }

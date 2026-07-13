@@ -74,6 +74,7 @@ function Show-Menu {
         @{ N='8'; I='📚'; L='Academic Templates — шаблоны' },
         @{ N='9'; I='🎨'; L='Fonts & Templates — шрифты' },
         @{ N='D'; I='🩺'; L='Диагностика ноутбука — Health Score' },
+        @{ N='A'; I='⏰'; L='Автодиагностика — задача в Scheduler' },
         @{ N='0'; I='❌'; L='Выход' }
     )
     foreach ($it in $items) {
@@ -189,6 +190,7 @@ while ($running) {
         '8' { Write-Host ""; try { Start-Process explorer.exe (Join-Path $VaultPath '03-Academic') } catch { Write-Host "  ❌ Ошибка: $($_.Exception.Message)" -ForegroundColor Red }; Pause-Return }
         '9' { Write-Host ""; Write-Host '  Для установки используйте Setup-Everything.ps1' -ForegroundColor Yellow; Pause-Return }
         'D' { Write-Host ''; Write-Host '  Full-режим (стресс-проба CPU, замер диска)? (Y/N): ' -ForegroundColor Yellow -NoNewline; $full = Read-Host; $p = @{ Export = $true }; if ($full -eq 'Y' -or $full -eq 'y') { $p['Full'] = $true }; Invoke-Script 'Test-LaptopHealth.ps1' $p | Out-Host; Pause-Return }
+        'A' { Write-Host ''; Write-Host '  [1] Зарегистрировать (еженедельно, Пн 09:00)  [2] Ежедневно  [3] Удалить задачу: ' -ForegroundColor Yellow -NoNewline; $m = Read-Host; $p = @{}; if ($m -eq '2') { $p['Daily'] = $true } elseif ($m -eq '3') { $p['Unregister'] = $true }; if ($m -in '1','2','3') { Invoke-Script 'Register-HealthCheckTask.ps1' $p | Out-Host } else { Write-Host '  ❌ Неверный выбор' -ForegroundColor Red }; Pause-Return }
         '0' { $running = $false; Clear-Host; Write-Host ""; Write-Host '  👋 До свидания!' -ForegroundColor Cyan; Write-Host ""; exit 0 }
         default { Write-Host ""; Write-Host '  ❌ Неверный выбор' -ForegroundColor Red; Start-Sleep -Seconds 1 }
     }

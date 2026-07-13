@@ -60,7 +60,8 @@
 | `New-CommandCenter.ps1` | 619 | Интерактивное меню управления экосистемой |
 | `Sync-ObsidianToNotion.ps1` | 569 | Markdown→Notion blocks, #publish теги, state management |
 | `Backup-ToGitHub.ps1` | 375 | Auto-init git, daily commits, push |
-| `Test-LaptopHealth.ps1` | 380 | Диагностика ноутбука: CPU, RAM, диски/SMART, батарея, сеть, безопасность, Health Score |
+| `Test-LaptopHealth.ps1` | 420 | Диагностика ноутбука: CPU, RAM, диски/SMART, батарея, сеть, безопасность, Health Score, JSON+HTML отчёты |
+| `Register-HealthCheckTask.ps1` | 150 | Автодиагностика: задача Task Scheduler `MS365-LaptopHealth`, отчёты в OneDrive |
 
 ### Веб-витрина
 - **Live:** https://iusigf6hsqxqy.kimi.page
@@ -80,6 +81,12 @@
 
 # Запустить Command Center — управление экосистемой
 .\scripts\New-CommandCenter.ps1
+
+# Диагностика ноутбука (или пункт [D] в Command Center)
+.\scripts\Test-LaptopHealth.ps1 -Full -Export
+
+# Автодиагностика каждую неделю (или пункт [A] в Command Center)
+.\scripts\Register-HealthCheckTask.ps1 -RunNow
 ```
 
 ## Ссылки
