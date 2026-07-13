@@ -8,6 +8,7 @@ const navItems = [
   { path: '/fonts', label: 'Fonts' },
   { path: '/dashboard', label: 'Dashboard' },
   { path: '/workflow', label: 'Workflow' },
+  { path: '/health', label: 'Health' },
 ];
 
 export default function Layout() {

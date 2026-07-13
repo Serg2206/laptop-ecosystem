@@ -21,7 +21,7 @@
 │        ↕                                                       │
 │   GITHUB — github.com/Serg2206/laptop-ecosystem               │
 │   ├── PowerShell скрипты (3,247 строк)                        │
-│   ├── Веб-витрина (React + 5 страниц)                         │
+│   ├── Веб-витрина (React + 6 страниц)                         │
 │   └── Obsidian Vault backup                                   │
 │        ↕                                                       │
 │   MS 365 TOOLKIT — 5 модулей                                  │
@@ -66,7 +66,8 @@
 
 ### Веб-витрина
 - **Live:** https://iusigf6hsqxqy.kimi.page
-- 5 страниц: Home, Templates, Fonts, Dashboard, Workflow
+- 6 страниц: Home, Templates, Fonts, Dashboard, Workflow, Health
+- Health: загрузка JSON-отчётов Test-LaptopHealth — Health Score, KPI, тренд, детали
 - React 19 + TypeScript + Tailwind CSS + Framer Motion
 
 ### Notion
