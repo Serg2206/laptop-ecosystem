@@ -53,13 +53,18 @@
 - Word: `Academic-Modern.dotx` — 10 стилей
 - PowerPoint: `Conference-Pro.potx` — 8 типов слайдов
 
-### PowerShell Скрипты (3,247 строк)
+### PowerShell Скрипты (2,514 строк)
 | Скрипт | Строк | Назначение |
 |--------|-------|------------|
-| `Get-WorkspaceStatus.ps1` | 1,007 | Дашборд: OneDrive, Obsidian, Notion API, GitHub, Junctions, Task Scheduler |
-| `New-CommandCenter.ps1` | 619 | Интерактивное меню управления экосистемой |
-| `Sync-ObsidianToNotion.ps1` | 569 | Markdown→Notion blocks, #publish теги, state management |
-| `Backup-ToGitHub.ps1` | 375 | Auto-init git, daily commits, push |
+| `Get-WorkspaceStatus.ps1` | 954 | Дашборд: OneDrive, Obsidian, Notion API, GitHub, Junctions, Task Scheduler |
+| `New-CommandCenter.ps1` | 596 | Интерактивное меню управления экосистемой |
+| `Sync-ObsidianToNotion.ps1` | 565 | Markdown→Notion blocks, #publish теги, state management |
+| `Backup-ToGitHub.ps1` | 399 | Auto-init git, daily commits, push |
+
+*`Get-WorkspaceStatus.ps1` и `New-CommandCenter.ps1` объединены сюда из
+[workspace-config](https://github.com/Serg2206/workspace-config) — более
+полные версии этих двух скриптов существовали там (см. решение о
+консолидации дублирующихся репозиториев).*
 
 ### Веб-витрина
 - **Live:** https://iusigf6hsqxqy.kimi.page
